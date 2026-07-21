@@ -10,7 +10,8 @@ writes the result to `stickers/sheet.png`. Useful for:
 
 You drive the layout by **how many stickers per row/column** and a
 **fixed per-sticker cell size** — the sheet dimensions are then computed
-to fit. Output goes to `stickers/sheet.png`.
+to fit. Each placed sticker is kept inside a padded, dotted cut-guide
+rectangle. Output goes to `stickers/sheet.png`.
 
 Usage:
     python pipeline/compile_sticker_sheet.py
@@ -27,7 +28,7 @@ import sys
 from pathlib import Path
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageDraw
 except ImportError:
     print("error: Pillow not installed — pip install pillow", file=sys.stderr)
     sys.exit(1)
@@ -56,6 +57,10 @@ def parse_args():
                    help="gap between stickers in px (default 30)")
     p.add_argument("--margin", type=int, default=20,
                    help="outer page margin in px (default 20)")
+    p.add_argument("--padding", type=int, default=24,
+                   help="space between a sticker and its cut guide in px (default 24)")
+    p.add_argument("--cut-line", default="#7A7065",
+                   help="dotted cut-guide colour (default muted brown-grey)")
     p.add_argument("--bg",   default="#FFF8EB",
                    help="sheet background colour (default warm ivory)")
     return p.parse_args()
@@ -82,6 +87,21 @@ def collect_stickers():
     return files
 
 
+def dotted_rectangle(draw, box, fill, dot=4, space=6, width=1):
+    """Draw a dotted rectangular cut guide, including its corners."""
+    left, top, right, bottom = box
+    step = dot + space
+
+    # Explicit sides keep the dot pattern aligned and avoid joining the
+    # guides of adjacent cells when a small --gap is used.
+    for px in range(left, right + 1, step):
+        draw.line((px, top, min(px + dot - 1, right), top), fill=fill, width=width)
+        draw.line((px, bottom, min(px + dot - 1, right), bottom), fill=fill, width=width)
+    for py in range(top, bottom + 1, step):
+        draw.line((left, py, left, min(py + dot - 1, bottom)), fill=fill, width=width)
+        draw.line((right, py, right, min(py + dot - 1, bottom)), fill=fill, width=width)
+
+
 def main():
     args = parse_args()
     files = collect_stickers()
@@ -91,6 +111,7 @@ def main():
     cell_h = max(1, args.cell_h)
     gap    = max(0, args.gap)
     margin = max(0, args.margin)
+    padding = max(0, args.padding)
 
     # Rows: use the requested count, else just enough to hold every sticker.
     auto_rows = (len(files) + cols - 1) // cols
@@ -112,6 +133,7 @@ def main():
           f"({cell_w}x{cell_h} cells) -> {sheet_w}x{sheet_h} sheet")
 
     sheet = Image.new("RGB", (sheet_w, sheet_h), args.bg)
+    draw = ImageDraw.Draw(sheet)
 
     for i, fp in enumerate(files):
         r, c = divmod(i, cols)
@@ -122,13 +144,18 @@ def main():
         except Exception as e:
             print(f"  ! skipped {fp.name}: {e}")
             continue
-        # Fit within the cell without stretching, then centre it.
-        im.thumbnail((cell_w, cell_h), Image.LANCZOS)
+        # The dotted guide is the cutting boundary; retain clear space on
+        # every side so artwork is never cut off.
+        inner_w = max(1, cell_w - 2 * padding)
+        inner_h = max(1, cell_h - 2 * padding)
+        im.thumbnail((inner_w, inner_h), Image.LANCZOS)
         ox = x + (cell_w - im.width)  // 2
         oy = y + (cell_h - im.height) // 2
         # Use the alpha channel as the paste mask so the warm-cream
         # sheet background shows through any transparent edges.
         sheet.paste(im, (ox, oy), im)
+        dotted_rectangle(draw, (x, y, x + cell_w - 1, y + cell_h - 1),
+                         args.cut_line)
         print(f"  + {fp.name} -> cell ({r}, {c})")
 
     sheet.save(OUT_PATH, optimize=True)
