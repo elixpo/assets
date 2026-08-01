@@ -20,9 +20,9 @@ LLM_MAX_TOKENS_SEARCH = 2500
 LLM_MODEL = LLM_MODEL_CHAT
 
 # ── Repository ──────────────────────────────────────
-REPO = "elixpo/assets"
-PROJECT_NAME = "assets"
-PROJECT_DESCRIPTION = "Real-time collaborative blogging platform"
+REPO = "elixpo/branding"
+PROJECT_NAME = "branding"
+PROJECT_DESCRIPTION = "Elixpo brand assets and guidelines"
 
 # ── GitHub Projects V2 ──────────────────────────────
 # Shared org-wide projects (linked to all elixpo repos).
