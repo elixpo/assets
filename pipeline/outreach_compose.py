@@ -21,7 +21,7 @@ from PIL import Image, ImageDraw, ImageFont
 W, H = 1280, 720
 MARGIN = 76
 TEXT_W = 555
-ART_BOX = (760, 92, 1218, 650)
+ART_BOX = (600, 92, 1218, 650)
 
 CANVAS = (255, 252, 247)
 INK = (33, 33, 33)
@@ -161,16 +161,12 @@ def _place_art(card, art_path):
     card.paste(art, (x, y), art)
 
 
-def compose_outreach_card(card_md, art_path, out_path):
-    txt = _read_text_block(card_md)
+def compose_sticker_card(sticker_path, out_path, headline, description,
+                         eyebrow="A NOTE FROM OREO", url="blogs.elixpo.com"):
+    """Create one outreach card from an existing transparent sticker."""
     image = _background()
-    _place_art(image, art_path)
+    _place_art(image, sticker_path)
     draw = ImageDraw.Draw(image)
-
-    eyebrow = txt.get("eyebrow", "A NOTE FROM OREO")
-    headline = txt.get("headline", "")
-    sub = txt.get("sub", "")
-    url = txt.get("url", "")
 
     eyebrow_font = _font("mono", 20)
     _draw_tracked(draw, (MARGIN, 112), eyebrow.upper(), eyebrow_font, MUTED, tracking=5)
@@ -183,16 +179,18 @@ def compose_outreach_card(card_md, art_path, out_path):
         y += line_height
 
     underline_y = y + 11
-    draw.rounded_rectangle((MARGIN, underline_y, MARGIN + 320, underline_y + 10),
+    draw.rounded_rectangle((MARGIN, underline_y, MARGIN + 200, underline_y + 10),
                            radius=5, fill=CORAL)
 
     # A deliberately narrower measure makes outreach descriptions breathe over
     # two or three lines instead of colliding with the illustration.
     sub_font = _font("sans", 22)
     sub_y = underline_y + 38
-    for line in _wrap(draw, sub, sub_font, 505):
-        draw.text((MARGIN, sub_y), line, font=sub_font, fill=SLATE)
-        sub_y += 32
+    for paragraph in description.splitlines() or [""]:
+        lines = _wrap(draw, paragraph, sub_font, 505) if paragraph else [""]
+        for line in lines:
+            draw.text((MARGIN, sub_y), line, font=sub_font, fill=SLATE)
+            sub_y += 32
 
     if url:
         url_font = _font("mono", 18)
@@ -202,6 +200,19 @@ def compose_outreach_card(card_md, art_path, out_path):
     out_path.parent.mkdir(parents=True, exist_ok=True)
     image.save(out_path, format="PNG", optimize=True)
     return out_path
+
+
+def compose_outreach_card(card_md, art_path, out_path):
+    """Backward-compatible prompt-file compositor."""
+    txt = _read_text_block(card_md)
+    return compose_sticker_card(
+        art_path,
+        out_path,
+        headline=txt.get("headline", ""),
+        description=txt.get("sub", ""),
+        eyebrow=txt.get("eyebrow", "A NOTE FROM OREO"),
+        url=txt.get("url", "blogs.elixpo.com"),
+    )
 
 
 def main(argv):
