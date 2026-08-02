@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Elixpo Outreach Studio</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="brand-heading">
+          <img class="brand-logo" src="../branding/brand/elixpo_word_mask_text.png" alt="Elixpo — Built in the Open" />
+          <div>
+            <p class="kicker">ELIXPO · BRAND OUTREACH</p>
+            <h1>Outreach Studio</h1>
+            <p class="lede">Create polished 1:1 or 16:9 outreach cards for any Elixpo product, launch or community.</p>
+          </div>
+        </div>
+        <div class="local-pill"><span></span> Local only · zero credits</div>
+      </header>
+
+      <section class="workspace">
+        <aside class="controls" aria-label="Card controls">
+          <section class="panel">
+            <div class="section-heading">
+              <span class="step">01</span>
+              <div>
+                <h2>Choose Oreo</h2>
+                <p>Use a repo sticker or upload a new outreach pose.</p>
+              </div>
+            </div>
+
+            <label>
+              Sticker library
+              <select id="sticker-select">
+                <option value="053_reading_book.png">Reading a book</option>
+                <option value="025_lightbulb_idea.png">Bright idea</option>
+                <option value="107_paper_plane.png">Paper plane</option>
+                <option value="023_rocket_launch.png">Rocket launch</option>
+                <option value="01_hello.png">Hello wave</option>
+                <option value="116_puzzle_piece.png">Puzzle piece</option>
+                <option value="120_shooting_star.png">Shooting star</option>
+                <option value="072_artist_easel.png">Artist easel</option>
+                <option value="021_coding_laptop.png">Coding laptop</option>
+                <option value="113_mailbox_letter.png">Mailbox letter</option>
+                <option value="031_telescope_stars.png">Telescope</option>
+              </select>
+            </label>
+
+            <div class="inline-loader">
+              <label class="grow">
+                Any repo sticker
+                <input id="sticker-name" type="text" placeholder="e.g. 041_coffee.png" />
+              </label>
+              <button id="load-sticker" class="button button-soft" type="button">Load</button>
+            </div>
+
+            <label class="upload-zone" for="sticker-upload">
+              <input id="sticker-upload" type="file" accept="image/png,image/webp" />
+              <span class="upload-icon">↥</span>
+              <span><strong>Upload a sticker</strong><small>PNG or WebP with transparency</small></span>
+            </label>
+            <p id="sticker-status" class="status" aria-live="polite">Using 053_reading_book.png</p>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <span class="step">02</span>
+              <div>
+                <h2>Write the note</h2>
+                <p>Copy wraps automatically inside the protected column.</p>
+              </div>
+            </div>
+
+            <label>
+              Eyebrow
+              <input id="eyebrow" type="text" value="A NOTE FROM OREO" maxlength="42" />
+            </label>
+            <label>
+              Headline
+              <textarea id="headline" rows="3" maxlength="100">Ideas deserve to travel</textarea>
+            </label>
+            <label>
+              Description
+              <textarea id="description" rows="3" maxlength="180">Shape the message. Pick Oreo. Share it everywhere.</textarea>
+            </label>
+            <label>
+              URL
+              <input id="url" type="text" value="elixpo.com" maxlength="80" />
+            </label>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <span class="step">03</span>
+              <div>
+                <h2>Tune the card</h2>
+                <p>Move Oreo without risking overlap with the copy.</p>
+              </div>
+            </div>
+
+            <label>
+              Card format
+              <select id="format">
+                <option value="landscape">16:9 · 1280 × 720</option>
+                <option value="square">1:1 · 1080 × 1080</option>
+              </select>
+            </label>
+
+            <label>
+              Tangy treatment
+              <select id="tangy-style">
+                <option value="blobs">Blob party</option>
+                <option value="burst">Sunburst</option>
+                <option value="ribbons">Ribbon rush</option>
+                <option value="confetti">Confetti pop</option>
+                <option value="minimal">Editorial zest</option>
+              </select>
+            </label>
+
+            <label>
+              Tangy palette
+              <select id="theme">
+                <option value="sunset">Sunset</option>
+                <option value="berry">Berry pop</option>
+                <option value="citrus">Citrus</option>
+                <option value="ocean">Poolside</option>
+              </select>
+            </label>
+
+            <div class="range-row">
+              <label for="sticker-scale">Sticker size <output id="scale-output">92%</output></label>
+              <input id="sticker-scale" type="range" min="45" max="120" value="92" />
+            </div>
+            <div class="range-row">
+              <label for="sticker-x">Horizontal <output id="x-output">1000</output></label>
+              <input id="sticker-x" type="range" min="790" max="1130" value="1000" />
+            </div>
+            <div class="range-row">
+              <label for="sticker-y">Vertical <output id="y-output">370</output></label>
+              <input id="sticker-y" type="range" min="190" max="535" value="370" />
+            </div>
+
+            <div class="toggle-row">
+              <label class="toggle"><input id="show-dots" type="checkbox" checked /><span></span>Dotted grid</label>
+              <label class="toggle"><input id="show-blobs" type="checkbox" checked /><span></span>Tangy layer</label>
+            </div>
+          </section>
+        </aside>
+
+        <section class="preview-area">
+          <div class="preview-toolbar">
+            <div>
+              <p class="preview-label">LIVE PREVIEW</p>
+              <span id="preview-dimensions">1280 × 720 PNG · 16:9</span>
+            </div>
+            <div class="actions">
+              <button id="reset-card" class="button button-soft" type="button">Reset</button>
+              <button id="download-card" class="button button-primary" type="button">Download PNG</button>
+            </div>
+          </div>
+
+          <div class="canvas-frame">
+            <canvas id="card-canvas" width="1280" height="720" aria-label="Outreach card preview"></canvas>
+          </div>
+
+          <div class="tips">
+            <span>Tip</span>
+            Newly generated outreach stickers can be dropped in with <strong>Upload a sticker</strong>; no manifest update is needed.
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
