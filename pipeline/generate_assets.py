@@ -205,11 +205,13 @@ def _read_blog_badge_prompts(path=None):
     return badges
 
 
-def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL):
+def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL,
+                timeout=90):
     """Generic download — saves the generated PNG to out_path.
 
-    `model` overrides the image model for this call (default MODEL). OG cards
-    pass MODEL_OG ("gptimage") for the line-art design.
+    `model` overrides the image model for this call (default MODEL). `timeout`
+    is the per-attempt response timeout in seconds. OG cards pass MODEL_OG
+    ("gptimage") for the line-art design.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -232,7 +234,7 @@ def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL):
     for attempt in range(4):
         try:
             req  = urllib.request.Request(url, headers=headers)
-            resp = urllib.request.urlopen(req, timeout=90)
+            resp = urllib.request.urlopen(req, timeout=timeout)
             data = resp.read()
             if len(data) < 1000:
                 print("  WARN small (%d bytes), retry" % len(data))

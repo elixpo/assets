@@ -6,6 +6,7 @@ corner-flood-fills the pure-white background to transparency.
 """
 
 import argparse
+import hashlib
 import sys
 import time
 from pathlib import Path
@@ -16,8 +17,9 @@ PROMPT_ROOT = REPO_ROOT / "prompts" / "icons" / "blogs.elixpo" / "blogs_badges"
 PROMPT_DIR = PROMPT_ROOT / "prompts"
 STYLE_PATH = PROMPT_ROOT / "STYLE.md"
 OUTPUT_DIR = REPO_ROOT / "branding" / "icons" / "blogs.elixpo" / "blogs_badges"
-MODEL = "flux"
+MODEL = "klein"
 SIZE = 1024
+REQUEST_TIMEOUT = 240
 
 # Make imports work both as ``python -m pipeline...`` and as a direct script.
 if str(REPO_ROOT) not in sys.path:
@@ -51,12 +53,27 @@ def discover_prompts():
     }
 
 
+def badge_seed(base_seed, badge_id):
+    """Return a stable, badge-specific Pollinations seed.
+
+    Python's built-in ``hash`` changes between processes, so use SHA-256 to
+    ensure that generating one badge alone produces the same result as a full
+    batch with the same base seed.
+    """
+    digest = hashlib.sha256(badge_id.encode("utf-8")).digest()
+    offset = int.from_bytes(digest[:4], "big") % 1_000_000
+    return (base_seed + offset) % 2_147_483_647
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Generate LixBlogs badge PNG prototypes with Pollinations Flux.",
+        description="Generate LixBlogs badge PNG prototypes with Pollinations Klein.",
     )
     parser.add_argument("badges", nargs="*", help="Badge IDs; omit to generate all.")
-    parser.add_argument("--seed", type=int, default=42, help="Pollinations seed (default 42).")
+    parser.add_argument(
+        "--seed", type=int, default=42,
+        help="Base seed used to derive a stable unique seed per badge (default 42).",
+    )
     parser.add_argument("--force", action="store_true", help="Reroll existing locked assets.")
     parser.add_argument("--list", action="store_true", help="List discovered badge IDs and exit.")
     return parser.parse_args()
@@ -88,7 +105,8 @@ def main():
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     generated = 0
-    print("Generating %d LixBlogs badge(s) [model=%s, seed=%d]" %
+    print("Generating %d LixBlogs badge(s) "
+          "[model=%s, base-seed=%d, unique-per-badge]" %
           (len(selected), MODEL, args.seed))
 
     for badge_id in selected:
@@ -102,9 +120,20 @@ def main():
             print("  [skip] %s — missing ## Prompt block" % badge_id)
             continue
 
-        full_prompt = "%s Badge-specific direction: %s" % (shared, individual)
+        # Put the distinguishing artwork first so the model does not over-focus
+        # on the shared medallion frame and collapse badges into one design.
+        full_prompt = (
+            "Create only the LixBlogs badge named '%s'. "
+            "Unique achievement artwork — highest priority: %s "
+            "Shared visual-family rules: %s "
+            "The central pictogram must follow this badge's unique direction; "
+            "do not substitute a generic symbol or reuse another badge layout."
+        ) % (badge_id, individual, shared)
+        seed = badge_seed(args.seed, badge_id)
+        print("  [%s] seed=%d" % (badge_id, seed))
         ok = download_to(full_prompt, output, width=SIZE, height=SIZE,
-                         seed=args.seed, model=MODEL)
+                         seed=seed, model=MODEL,
+                         timeout=REQUEST_TIMEOUT)
         if not ok:
             continue
 
