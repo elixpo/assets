@@ -1,7 +1,7 @@
 """Generate LixBlogs creator-badge prototypes from individual Markdown prompts.
 
 The script discovers every ``prompts/*.md`` file, prepends ``STYLE.md``, calls
-the repository's existing Pollinations downloader with ``model=flux``, and
+the repository's existing Pollinations downloader with ``model=klein``, and
 corner-flood-fills the pure-white background to transparency.
 """
 
