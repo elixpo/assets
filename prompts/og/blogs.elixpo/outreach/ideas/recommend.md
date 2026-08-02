@@ -1,4 +1,4 @@
-# LixBlogs outreach — recommend
+# LixBlogs outreach idea — recommend
 
 For directly suggesting LixBlogs to someone who should be publishing their work.
 

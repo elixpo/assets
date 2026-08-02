@@ -1,4 +1,4 @@
-# LixBlogs outreach — audience
+# LixBlogs outreach idea — audience
 
 For showing that one useful post can travel far beyond its first reader.
 

@@ -23,6 +23,12 @@ OG cards (prompts/og/<site>/prompts/<name>.md → branding/og/<site>/<name>.png,
   python pipeline/generate_assets.py --og mails.elixpo --force    # reroll a locked card
   # finished <name>.png is LOCKED (not regenerated); .bg.png is deleted after compositing
 
+Outreach cards (reusable art stash + locally composited social card):
+  python pipeline/generate_assets.py --outreach blogs.elixpo write
+  python pipeline/generate_assets.py --outreach blogs.elixpo write --force-art
+  # the API-generated Oreo story is kept under outreach/stash/; rerunning
+  # without --force-art only recomposes blobs, dots, copy and layout locally
+
 Website icons (prompts/icons/<domain>/icon_prompt.md → branding/icons/web/<domain>.png):
   python pipeline/generate_assets.py --web                  # all website icons
   python pipeline/generate_assets.py --web sketch.elixpo    # single icon
@@ -66,7 +72,7 @@ BRAND_W, BRAND_H = 1024, 576
 # headline/eyebrow/sub/url ourselves with Pillow (pipeline/og_compose.py) so the
 # model never fumbles the typography. No transparency pass.
 OG_W, OG_H = 1280, 720          # 16:9
-MODEL_OG   = "gptimage-large"   # higher-fidelity line art for the OG design
+MODEL_OG   = "gptimage"         # standard GPT Image model for OG designs
 
 # Locked Oreo line-art look reproduces on this seed (override only with --seed).
 # Canonical reference: references/OREO-LINEART.md
@@ -100,7 +106,7 @@ def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL):
     """Generic download — saves the generated PNG to out_path.
 
     `model` overrides the image model for this call (default MODEL). OG cards
-    pass MODEL_OG ("gptlarge") for higher-fidelity line art.
+    pass MODEL_OG ("gptimage") for the line-art design.
     """
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -473,6 +479,90 @@ def _compose_og_text(card_md, bg_path, out_path):
         print("        run `python pipeline/og_compose.py` once Pillow is available")
 
 
+def generate_outreach(site_name="blogs.elixpo", only_names=None, seed=OG_SEED,
+                       force_art=False):
+    """Generate reusable Oreo story art, then compose outreach cards locally.
+
+    Unlike normal OG cards, the costly image output is deliberately retained:
+
+      prompts/og/<site>/outreach/prompts/<name>.md
+        → branding/og/<site>/outreach/stash/<name>.source.png  (locked raw)
+        → branding/og/<site>/outreach/stash/<name>.art.png     (transparent)
+        → branding/og/<site>/outreach/<name>.png              (local compose)
+
+    Once the stash exists, ordinary reruns never call the image API. Use
+    ``--force-art`` only when intentionally changing Oreo's story illustration.
+    """
+    prompt_dir = Path("prompts") / "og" / site_name / "outreach" / "prompts"
+    output_dir = Path("branding") / "og" / site_name / "outreach"
+    stash_dir = output_dir / "stash"
+    if not prompt_dir.exists():
+        print("No outreach prompts directory at %s" % prompt_dir)
+        return
+
+    mds = [path for path in sorted(prompt_dir.glob("*.md"))
+           if path.stem.lower() not in OG_SKIP]
+    if only_names:
+        mds = [path for path in mds if path.stem in only_names]
+    if not mds:
+        print("No outreach prompt files selected in %s" % prompt_dir)
+        return
+
+    try:
+        try:
+            from pipeline.sticker_transparency import make_transparent  # type: ignore
+            from pipeline.outreach_compose import compose_outreach_card  # type: ignore
+        except Exception:
+            sys.path.insert(0, str(Path("pipeline").resolve()))
+            from sticker_transparency import make_transparent  # type: ignore
+            from outreach_compose import compose_outreach_card  # type: ignore
+    except Exception as exc:
+        print("Outreach pipeline unavailable (%s). Install Pillow first." % exc)
+        return
+
+    stash_dir.mkdir(parents=True, exist_ok=True)
+    print("[%s] outreach cards (%d)  [seed=%d, model=%s]%s...\n" %
+          (site_name, len(mds), seed, MODEL_OG,
+           "  --force-art" if force_art else ""))
+
+    generated = 0
+    composed = 0
+    for md in mds:
+        source = stash_dir / (md.stem + ".source.png")
+        art = stash_dir / (md.stem + ".art.png")
+        final = output_dir / (md.stem + ".png")
+        generated_this_card = False
+
+        if force_art or not source.exists():
+            prompt = _read_prompt(md)
+            if not prompt:
+                print("  SKIP %s — no ## Prompt block" % md.stem)
+                continue
+            ok = download_to(prompt, source, width=768, height=768,
+                             seed=seed, model=MODEL_OG)
+            if not ok:
+                continue
+            generated += 1
+            generated_this_card = True
+
+        # Derive the transparent reusable layer locally. Rebuild it whenever
+        # the source was deliberately rerolled, or if only the derived file is
+        # missing. The raw source stays in stash for recovery and retuning.
+        if force_art or not art.exists():
+            make_transparent(source, art, tolerance=32)
+            print("  stashed transparent art → %s" % art)
+
+        compose_outreach_card(md, art, final)
+        print("  composited locally → %s" % final)
+        composed += 1
+        if generated_this_card:
+            time.sleep(8)
+
+    print("\nDone. Generated %d new art layer(s); composited %d card(s)." %
+          (generated, composed))
+    print("Reusable art remains in %s" % stash_dir)
+
+
 def generate_app(app_name, only_names=None, seed=42):
     """Generate all assets for one app: prompts/<app>/*.md → apps/<app>/assets/raw/*.png"""
     prompts_dir = Path("prompts") / app_name
@@ -625,6 +715,22 @@ def _stickers_in_range(lo, hi):
 
 def main():
     args, seed = _pop_seed(sys.argv[1:])
+
+    # ── outreach social cards ────────────────────────────────────────────────
+    # Generate the story illustration once, retain it in a stash, and freely
+    # recompose the rest of the card with Pillow. Site defaults to blogs.elixpo.
+    if "--outreach" in args:
+        force_art = "--force-art" in args
+        args = [arg for arg in args if arg != "--force-art"]
+        idx = args.index("--outreach")
+        rest = args[idx + 1:]
+        site = "blogs.elixpo"
+        if rest and (Path("prompts") / "og" / rest[0]).is_dir():
+            site, *rest = rest
+        outreach_seed = seed if "--seed" in sys.argv[1:] else OG_SEED
+        generate_outreach(site_name=site, only_names=rest or None,
+                          seed=outreach_seed, force_art=force_art)
+        return
 
     # ── stickers mode ────────────────────────────────────────────────────────
     # Hardcoded 1024×1024 output. Any positional args after --stickers

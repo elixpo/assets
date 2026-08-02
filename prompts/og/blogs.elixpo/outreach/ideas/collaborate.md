@@ -1,4 +1,4 @@
-# LixBlogs outreach — collaborate
+# LixBlogs outreach idea — collaborate
 
 For inviting a co-writer, editor or teammate into the same story.
 

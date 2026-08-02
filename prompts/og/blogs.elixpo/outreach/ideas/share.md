@@ -1,4 +1,4 @@
-# LixBlogs outreach — share
+# LixBlogs outreach idea — share
 
 For sharing a useful post directly with a friend, peer or community.
 

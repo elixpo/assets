@@ -94,7 +94,7 @@ whole design.
 ## Pipeline (locked)
 
 ```
-1. AI renders the DESIGN ONLY  (gptimage-large, 16:9, NO text)  → temp <name>.bg.png
+1. AI renders the DESIGN ONLY  (gptimage, 16:9, NO text)        → temp <name>.bg.png
 2. Pillow composites the type  (## Text block)                  → output/<name>.png
 3. the temp .bg.png is DELETED — the final .png is the only kept artifact
 ```

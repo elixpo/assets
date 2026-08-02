@@ -1,4 +1,4 @@
-# LixBlogs outreach — publish
+# LixBlogs outreach idea — publish
 
 For showing how a draft becomes a live page without making publishing feel technical.
 
