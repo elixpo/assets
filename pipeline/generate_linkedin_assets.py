@@ -13,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from pipeline.generate_assets import download_to  # noqa: E402
+from pipeline.linkedin_compose import compose_asset  # noqa: E402
 
 
 def read_section(path, heading):
@@ -94,6 +95,9 @@ def main():
 
         if output.exists() and not args.force:
             print("[locked] %s — use --force to reroll" % asset_id)
+            final_output = compose_asset(path)
+            if final_output:
+                print("  composited -> %s" % final_output)
             continue
         if not prompt:
             print("[skip] %s — missing ## Prompt" % asset_id)
@@ -102,6 +106,9 @@ def main():
         ok = download_to(prompt, output, width=width, height=height,
                          seed=args.seed, model=model)
         if ok:
+            final_output = compose_asset(path)
+            if final_output:
+                print("  composited -> %s" % final_output)
             generated += 1
             time.sleep(8)
 

@@ -4,7 +4,16 @@
 width: 1600
 height: 400
 model: flux
-output: branding/social/linkedin/elixpo-banner.png
+output: branding/brand/social/linkedin/elixpo-banner.bg.png
+final_output: branding/brand/social/linkedin/elixpo-banner.png
+background_output: branding/brand/social/linkedin/elixpo-dotted-background.png
+art_inset: 192,24,1600,376
+
+## Text
+
+tagline: Built in the Open
+email: hello@elixpo.com
+github: /elixpo
 
 ## Prompt
 

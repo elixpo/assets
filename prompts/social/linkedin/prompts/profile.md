@@ -4,7 +4,7 @@
 width: 1080
 height: 1080
 model: flux
-output: branding/social/linkedin/elixpo-profile.png
+output: branding/brand/social/linkedin/elixpo-profile.png
 
 ## Prompt
 
