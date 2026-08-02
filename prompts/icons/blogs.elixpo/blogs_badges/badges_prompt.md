@@ -32,6 +32,17 @@ Apply this direction to every individual badge prompt:
 
 Locked Oreo colors are ink `#262630`, cream `#F0EEE8`, cheek coral `#FF5D68`, and E-seal red `#DC3C32`.
 
+### Locked tier assignment
+
+| Tier | Badge files |
+| --- | --- |
+| Easy | `first-light.svg`, `finding-a-voice.svg`, `profile-complete.svg`, `topic-explorer.svg`, `series-starter.svg`, `first-hundred.svg`, `first-collaboration.svg` |
+| Moderate | `ten-stories.svg`, `consistent-creator.svg`, `reader-favourite.svg`, `worth-saving.svg`, `creative-partner.svg`, `present-author.svg` |
+| Hard | `prolific-creator.svg`, `deep-diver.svg`, `wide-reach.svg`, `shareworthy.svg`, `returning-audience.svg`, `team-player.svg`, `conversation-starter.svg`, `publication-builder.svg` |
+| Exceptional | `unbroken-voice.svg`, `headliner.svg`, `read-to-the-end.svg`, `staff-pick.svg` |
+
+The assignment above is authoritative. Never infer or change a tier from the subject matter, and never mix accents between tiers.
+
 ### Small-size acceptance rules
 
 - Judge the exported SVG at `30x30` first, without zooming. Reject it if the central achievement cannot be named from its silhouette.
@@ -149,7 +160,7 @@ Locked Oreo colors are ink `#262630`, cream `#F0EEE8`, cheek coral `#FF5D68`, an
 - Do not set fixed `width` or `height` attributes.
 - Do not use `currentColor`; each badge owns its palette.
 - Do not use gradients, masks, clip paths, filters, patterns, or authored opacity.
-- Do not include `<text>` except the single outlined E converted to paths inside the locked red E-seal. Do not include `<image>`, scripts, external fonts, or external references.
+- Do not include any `<text>` element. Construct the single cream E as a filled path inside the locked red E-seal. Do not include `<image>`, scripts, external fonts, or external references.
 - Include concise, descriptive `<title>` and `<desc>` elements.
 - Expand strokes when practical and optimize redundant groups and path points.
 - Test every badge at 30px, 38px, 46px, and 96px in both light and dark themes.
