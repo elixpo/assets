@@ -34,6 +34,15 @@ Website icons (prompts/icons/<domain>/icon_prompt.md → branding/icons/web/<dom
   python pipeline/generate_assets.py --web sketch.elixpo    # single icon
   (sticker-style on a cream background, transparency applied automatically)
 
+LixBlogs creator badge prototypes (one shared prompt file → transparent PNGs):
+  python pipeline/generate_assets.py --blog-badges first-light
+  python pipeline/generate_assets.py --blog-badges                    # all 25
+  python pipeline/generate_assets.py --blog-badges --list             # list IDs
+  python pipeline/generate_assets.py --blog-badges first-light --force
+  # Uses Pollinations model=flux. Finished PNGs are locked unless --force.
+  # The PNGs are vector-style approval sources; badges_prompt.md remains the
+  # strict specification for the later production SVG exports.
+
 Brand marks (prompts/brand/<variant>.md → branding/brand/<variant>.png):
   python pipeline/generate_assets.py --brand                # mascot mark, wordmark, lockup
   python pipeline/generate_assets.py --brand lockup         # single variant
@@ -49,6 +58,7 @@ Mascot reference: references/MASCOT.md
 """
 
 import os
+import re
 import sys
 import urllib.request
 import urllib.parse
@@ -73,6 +83,7 @@ BRAND_W, BRAND_H = 1024, 576
 # model never fumbles the typography. No transparency pass.
 OG_W, OG_H = 1280, 720          # 16:9
 MODEL_OG   = "gptimage"         # standard GPT Image model for OG designs
+MODEL_BLOG_BADGES = "flux"      # vector-style LixBlogs badge prototypes
 
 # Locked Oreo line-art look reproduces on this seed (override only with --seed).
 # Canonical reference: references/OREO-LINEART.md
@@ -100,6 +111,98 @@ def _read_prompt(path):
             lines.append(line)
         return " ".join(l.strip() for l in lines if l.strip())
     return None
+
+
+def _read_blog_badge_prompts(path=None):
+    """Parse the shared direction and 25 named badge prompts from one Markdown file.
+
+    Returns a list of dictionaries with ``id``, ``title`` and a complete Flux
+    prompt. Badge IDs come from the filenames in the Markdown headings, making
+    the spec the single source of truth for names and ordering.
+    """
+    source = Path(path or
+                  "prompts/icons/blogs.elixpo/blogs_badges/badges_prompt.md")
+    if not source.exists():
+        return []
+    text = source.read_text()
+
+    shared_start = text.find("## Shared SVG direction")
+    shared_end = text.find("## Badge prompts")
+    if shared_start < 0 or shared_end < 0:
+        print("Invalid badge prompt document — missing shared/badge sections")
+        return []
+    shared = text[shared_start:shared_end]
+    shared_lines = []
+    for line in shared.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(">"):
+            shared_lines.append(stripped.lstrip(">").strip())
+    shared_direction = " ".join(shared_lines)
+
+    heading_re = re.compile(
+        r"^###\s+\d+\.\s+(.+?)\s+—\s+`([^`]+\.svg)`\s*$",
+        re.MULTILINE,
+    )
+    matches = list(heading_re.finditer(text[shared_end:]))
+    badges = []
+    raster_contract = (
+        "STRICT FLAT SVG-STYLE ICON PROTOTYPE. Render at 1024x1024. "
+        "The transport output is PNG, so place only the centered badge on a "
+        "perfectly flat solid pure-white #FFFFFF background for local background "
+        "removal. Every colored region must be one perfectly uniform flat fill. "
+        "ABSOLUTELY NO gradients, lighting, shading, highlights, shadows, texture, "
+        "glow, transparency effects, mockup, surrounding scene, border frame, "
+        "text, letters, numbers, watermark, or raster noise. Use only the exact "
+        "hex colors allowed below—no hue variations. Preserve clean geometric "
+        "SVG-like shapes, medium-weight outlines, strong negative space, and "
+        "instant readability at 30px. Follow exact requested object counts."
+    )
+
+    badge_section = text[shared_end:]
+    for index, match in enumerate(matches):
+        body_start = match.end()
+        body_end = matches[index + 1].start() if index + 1 < len(matches) else len(badge_section)
+        body = badge_section[body_start:body_end]
+        prompt_lines = []
+        for line in body.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("## Export requirements"):
+                break
+            if stripped.startswith(">"):
+                prompt_lines.append(stripped.lstrip(">").strip())
+        badge_id = Path(match.group(2)).stem
+        individual_prompt = " ".join(prompt_lines)
+        prompt_lower = individual_prompt.lower()
+        named_colors = [
+            ("#60A5FA", ("easy", "blue")),
+            ("#9B7BF7", ("moderate", "purple")),
+            ("#F59E0B", ("hard", "amber")),
+            ("#EC4899", ("exceptional", "pink")),
+            ("#4ADE80", ("mint",)),
+            ("#FB7185", ("coral",)),
+        ]
+        allowed = []
+        for hex_color, keywords in named_colors:
+            if any(keyword in prompt_lower for keyword in keywords):
+                allowed.append(hex_color)
+        for base_color in ("#171724", "#FFF8EC"):
+            if base_color not in allowed:
+                allowed.append(base_color)
+        allowed = allowed[:5]
+        palette = (
+            "ALLOWED ARTWORK COLORS ONLY: %s, plus pure white only as the removable "
+            "outer background. The first listed difficulty color is the dominant "
+            "accent. Do not introduce any other color." % ", ".join(allowed)
+        )
+        prompt = " ".join(part for part in (
+            raster_contract,
+            palette,
+            shared_direction.replace("transparent background", "transparent-ready outer background"),
+            "Badge title for intent only (do not render it): %s." % match.group(1),
+            individual_prompt,
+        ) if part)
+        badges.append({"id": badge_id, "title": match.group(1), "prompt": prompt})
+    return badges
 
 
 def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL):
@@ -286,6 +389,69 @@ def generate_web_icons(only_names=None, seed=42, size=1024):
                               only_names, seed, size, "web icon", nested=True)
     if n:
         print("\nDone. Transparent PNGs in branding/icons/web/")
+
+
+def generate_blog_badges(only_names=None, seed=42, force=False, list_only=False):
+    """Generate transparent LixBlogs badge prototypes with Pollinations Flux."""
+    badges = _read_blog_badge_prompts()
+    if not badges:
+        print("No LixBlogs badge prompts found")
+        return
+
+    if list_only:
+        for badge in badges:
+            print("%-24s %s" % (badge["id"], badge["title"]))
+        return
+
+    if only_names:
+        wanted = set(only_names)
+        badges = [badge for badge in badges if badge["id"] in wanted]
+        found = {badge["id"] for badge in badges}
+        for missing in sorted(wanted - found):
+            print("  ! unknown badge: %s" % missing)
+    if not badges:
+        print("No LixBlogs badges selected")
+        return
+
+    try:
+        try:
+            from pipeline.sticker_transparency import make_transparent  # type: ignore
+        except Exception:
+            sys.path.insert(0, str(Path("pipeline").resolve()))
+            from sticker_transparency import make_transparent  # type: ignore
+    except Exception as exc:
+        print("Badge transparency pass unavailable (%s). Install Pillow first." % exc)
+        return
+
+    out_dir = Path("branding/icons/blogs.elixpo/blogs_badges")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    generated = 0
+    print("Generating %d LixBlogs badge prototype(s)  "
+          "[1024x1024, seed=%d, model=%s]%s...\n" %
+          (len(badges), seed, MODEL_BLOG_BADGES,
+           "  --force" if force else ""))
+
+    for badge in badges:
+        out = out_dir / (badge["id"] + ".png")
+        if out.exists() and not force:
+            print("  [locked] %s — keeping %s (pass --force to reroll)" %
+                  (badge["id"], out.name))
+            continue
+        ok = download_to(badge["prompt"], out, width=1024, height=1024,
+                         seed=seed, model=MODEL_BLOG_BADGES)
+        if not ok:
+            continue
+        try:
+            make_transparent(out, out, tolerance=24)
+            print("  alpha-stripped flat white background")
+        except Exception as exc:
+            print("  warn: transparency pass failed for %s (%s)" %
+                  (badge["id"], exc))
+        generated += 1
+        time.sleep(8)
+
+    print("\nDone. Generated %d badge prototype(s) → %s" %
+          (generated, out_dir))
 
 
 def generate_brand(only_names=None, seed=OG_SEED, force=False):
@@ -715,6 +881,19 @@ def _stickers_in_range(lo, hi):
 
 def main():
     args, seed = _pop_seed(sys.argv[1:])
+
+    # ── LixBlogs creator badge prototypes ──────────────────────────────────
+    # Parses all 25 prompts from the single strict SVG specification, renders
+    # vector-style PNG sources with Flux, and removes the flat white background.
+    if "--blog-badges" in args:
+        force = "--force" in args
+        list_only = "--list" in args
+        args = [arg for arg in args if arg not in {"--force", "--list"}]
+        idx = args.index("--blog-badges")
+        only = args[idx + 1:]
+        generate_blog_badges(only_names=only or None, seed=seed,
+                             force=force, list_only=list_only)
+        return
 
     # ── outreach social cards ────────────────────────────────────────────────
     # Generate the story illustration once, retain it in a stash, and freely
