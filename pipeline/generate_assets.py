@@ -87,10 +87,10 @@ MODEL_BLOG_BADGES = "flux"      # vector-style LixBlogs badge prototypes
 STICKER_STYLE_SUFFIX = (
     "pixel art cartoon style, thick dark outline, vibrant warm celebration "
     "colours, cute kawaii style, sticker design with thick white border "
-    "ready for die-cut, warm cream white background padded behind the main "
-    "subject by about 3-5px so the subject, sparkles, confetti, motion marks "
-    "and other tiny accents sit inside a solid clean backing, square crop, "
-    "no text, no watermark"
+    "ready for die-cut, warm cream padding band behind the main subject by "
+    "about 3-5px, then a pure white outer background outside that padding "
+    "so the subject, sparkles, confetti, motion marks and other tiny accents "
+    "sit inside the cream zone, square crop, no text, no watermark"
 )
 
 # Locked Oreo line-art look reproduces on this seed (override only with --seed).
@@ -126,8 +126,10 @@ def _normalize_sticker_prompt(prompt):
     old_suffix = (
         "pixel art cartoon style, thick dark outline, vibrant warm celebration "
         "colours, cute kawaii style, sticker design with thick white border "
-        "ready for die-cut, warm cream white background, square crop, no text, "
-        "no watermark"
+        "ready for die-cut, warm cream white background padded behind the main "
+        "subject by about 3-5px so the subject, sparkles, confetti, motion marks "
+        "and other tiny accents sit inside a solid clean backing, square crop, "
+        "no text, no watermark"
     )
     if old_suffix in prompt:
         prompt = prompt.replace(old_suffix, STICKER_STYLE_SUFFIX)

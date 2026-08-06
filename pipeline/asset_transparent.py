@@ -5,8 +5,8 @@ Writes:  apps/<app>/assets/transparent/*.png   (RGBA, background = alpha 0)
 
 Default strategy: flood-fill from the four corners and mark every connected
 pixel that's within `--tolerance` of the corner colour as transparent. This
-works perfectly for our generated sprites that come with a solid "plain warm
-cream background" prompt.
+works perfectly for our generated sprites that come with a solid pure-white
+outer background and a distinct cream padding band around the subject.
 
 Optional: pass `--rembg` to use the rembg AI model (better for complex
 backgrounds, but pulls a ~100 MB model on first run).
@@ -27,7 +27,7 @@ from collections import deque
 
 def _parse(argv):
     args = list(argv)
-    opts = {"app": None, "names": [], "tol": 40, "rembg": False, "feather": 0}
+    opts = {"app": None, "names": [], "tol": 12, "rembg": False, "feather": 0}
     i = 0
     while i < len(args):
         a = args[i]

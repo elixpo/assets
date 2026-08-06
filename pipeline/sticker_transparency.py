@@ -19,7 +19,7 @@ place (useful for shrinking the committed set without re-rendering).
 Usage:
     python pipeline/sticker_transparency.py                    # all stickers/*.png
     python pipeline/sticker_transparency.py 01_hello           # single sticker
-    python pipeline/sticker_transparency.py --tolerance 50     # looser fill
+    python pipeline/sticker_transparency.py --tolerance 12     # tighter fill for white-border stickers
     python pipeline/sticker_transparency.py --out stickers/transparent/   # write copies
     python pipeline/sticker_transparency.py --optimize-only    # just recompress, no fill
 
@@ -73,10 +73,10 @@ def parse_args():
     )
     p.add_argument("names", nargs="*",
                    help="sticker stems to process (omit = all PNGs in stickers/)")
-    p.add_argument("--tolerance", type=int, default=45,
-                   help="floodfill colour tolerance (default 45). Higher = "
+    p.add_argument("--tolerance", type=int, default=12,
+                   help="floodfill colour tolerance (default 12). Higher = "
                         "more aggressive bg removal but more risk of eating "
-                        "the panda's edge.")
+                        "the cream padding band.")
     p.add_argument("--out", default=None,
                    help="output directory (default: overwrite in place)")
     p.add_argument("--in-dir", default=str(STICKER_DIR),

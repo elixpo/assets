@@ -32,6 +32,9 @@ except ImportError:
     sys.exit(1)
 
 
+RESAMPLE_LANCZOS = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
+
+
 STICKER_DIR = Path("stickers")
 SKIP_NAMES = {"sheet.png", "oreoOS_gummy_sheet.png"}
 DEFAULT_DPI = 300
@@ -105,7 +108,8 @@ def dotted_rectangle(draw, box, fill, dot=4, space=6, width=1):
         draw.line((right, py, right, min(py + dot - 1, bottom)), fill=fill, width=width)
 
 
-def make_sheet(files, out_path, cols, rows, cell_w, cell_h, gap, margin, padding, bg, cut_line):
+def make_sheet(files, out_path, cols, rows, cell_w, cell_h, gap, margin, padding, bg, cut_line,
+               dpi):
     sheet_w = 2 * margin + cols * cell_w + (cols - 1) * gap
     sheet_h = 2 * margin + rows * cell_h + (rows - 1) * gap
 
@@ -125,7 +129,7 @@ def make_sheet(files, out_path, cols, rows, cell_w, cell_h, gap, margin, padding
 
         inner_w = max(1, cell_w - 2 * padding)
         inner_h = max(1, cell_h - 2 * padding)
-        im.thumbnail((inner_w, inner_h), Image.LANCZOS)
+        im.thumbnail((inner_w, inner_h), resample=RESAMPLE_LANCZOS)
 
         ox = x + (cell_w - im.width) // 2
         oy = y + (cell_h - im.height) // 2
@@ -134,7 +138,8 @@ def make_sheet(files, out_path, cols, rows, cell_w, cell_h, gap, margin, padding
         dotted_rectangle(draw, (x, y, x + cell_w - 1, y + cell_h - 1), cut_line)
         print(f"  + {fp.name} -> cell ({r}, {c})")
 
-    sheet.save(out_path, optimize=True)
+    sheet.save(out_path, format="PNG", optimize=True, compress_level=9,
+               dpi=(dpi, dpi))
     return sheet_w, sheet_h
 
 
@@ -190,6 +195,7 @@ def main():
             max(0, args.padding),
             args.bg,
             args.cut_line,
+            args.dpi,
         )
         print(f"wrote {out_path} ({sheet_w}x{sheet_h}px)")
 
