@@ -84,6 +84,14 @@ BRAND_W, BRAND_H = 1024, 576
 OG_W, OG_H = 1280, 720          # 16:9
 MODEL_OG   = "gptimage"         # standard GPT Image model for OG designs
 MODEL_BLOG_BADGES = "flux"      # vector-style LixBlogs badge prototypes
+STICKER_STYLE_SUFFIX = (
+    "pixel art cartoon style, thick dark outline, vibrant warm celebration "
+    "colours, cute kawaii style, sticker design with thick white border "
+    "ready for die-cut, warm cream white background padded behind the main "
+    "subject by about 3-5px so the subject, sparkles, confetti, motion marks "
+    "and other tiny accents sit inside a solid clean backing, square crop, "
+    "no text, no watermark"
+)
 
 # Locked Oreo line-art look reproduces on this seed (override only with --seed).
 # Canonical reference: references/OREO-LINEART.md
@@ -111,6 +119,21 @@ def _read_prompt(path):
             lines.append(line)
         return " ".join(l.strip() for l in lines if l.strip())
     return None
+
+
+def _normalize_sticker_prompt(prompt):
+    """Force the shared sticker finish so every sticker keeps a padded solid backing."""
+    old_suffix = (
+        "pixel art cartoon style, thick dark outline, vibrant warm celebration "
+        "colours, cute kawaii style, sticker design with thick white border "
+        "ready for die-cut, warm cream white background, square crop, no text, "
+        "no watermark"
+    )
+    if old_suffix in prompt:
+        prompt = prompt.replace(old_suffix, STICKER_STYLE_SUFFIX)
+    elif STICKER_STYLE_SUFFIX not in prompt:
+        prompt = prompt.rstrip() + ", " + STICKER_STYLE_SUFFIX
+    return prompt
 
 
 def _read_blog_badge_prompts(path=None):
@@ -277,7 +300,8 @@ def download_to(prompt, out_path, width=200, height=200, seed=42, model=MODEL,
 
 
 def _generate_alpha_batch(prompts_dir, out_dir, only_names, seed, size, label,
-                          nested=False, height=None, lock=False, force=False):
+                          nested=False, height=None, lock=False, force=False,
+                          prompt_suffix=None):
     """Generate a folder of sticker-style PNGs with the cream-background
     transparency pass applied. Shared by stickers, website icons and brand
     marks — all want a flat cream background flood-filled to transparent.
@@ -340,6 +364,10 @@ def _generate_alpha_batch(prompts_dir, out_dir, only_names, seed, size, label,
         if not prompt:
             print("  SKIP %s — no ## Prompt block" % name_of(md))
             continue
+        if prompt_suffix:
+            prompt = prompt.rstrip()
+            if not prompt.endswith(prompt_suffix):
+                prompt = _normalize_sticker_prompt(prompt)
         out = out_dir / ("%s.png" % name_of(md))
         # Lock: once a good mark is committed, keep it. AI generation isn't
         # reproducible run-to-run, so a frozen brand mark stays put unless the
@@ -372,7 +400,8 @@ def generate_stickers(only_names=None, seed=42, size=1024):
     composited into a sheet by pipeline/compile_sticker_sheet.py.
     """
     n = _generate_alpha_batch(Path("prompts") / "stickers", Path("stickers"),
-                              only_names, seed, size, "sticker")
+                              only_names, seed, size, "sticker",
+                              prompt_suffix=STICKER_STYLE_SUFFIX)
     if n:
         print("\nDone. Run:  python pipeline/compile_sticker_sheet.py")
 

@@ -61,6 +61,8 @@ transparent regions of each sticker.
 ```
 pixel art cartoon style, thick dark outline, vibrant warm celebration
 colours, cute kawaii style, sticker design with thick white border
-ready for die-cut, warm cream white background, square crop, no text,
-no watermark
+ready for die-cut, warm cream white background padded behind the main
+subject by about 3-5px so the subject, sparkles, confetti, motion marks
+and other tiny accents sit inside a solid clean backing, square crop,
+no text, no watermark
 ```
