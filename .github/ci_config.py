@@ -1,23 +1,28 @@
 """
-Elixpo CI Configuration — accounts.elixpo
+Elixpo CI Configuration — agent.elixpo
 Single source of truth for all CI workflows and scripts.
 """
 
 # ── LLM ─────────────────────────────────────────────
 LLM_API_URL = "https://gen.pollinations.ai/v1/chat/completions"
-LLM_MODEL_AGENT = "glm"       
-LLM_MODEL_CODE = "qwen-coder"        
-LLM_MODEL_CHAT = "perplexity-fast"        
-LLM_MODEL_THINKING = "perplexity-reasoning"  
-LLM_MODEL_SEARCH = "gemini-search"    
+LLM_MODEL_AGENT = "deepseek"
+LLM_MODEL_CODE = "nova-fast"
+LLM_MODEL_CHAT = "nova-fast"
+LLM_MODEL_THINKING = "deepseek"
+LLM_MODEL_SEARCH = "perplexity-fast"
+
+LLM_MAX_TOKENS_AGENT = 3500
+LLM_MAX_TOKENS_CODE = 6000
+LLM_MAX_TOKENS_THINKING = 5000
+LLM_MAX_TOKENS_SEARCH = 2500
 
 # Back-compat alias — scripts that haven't been migrated still import LLM_MODEL.
 LLM_MODEL = LLM_MODEL_CHAT
 
 # ── Repository ──────────────────────────────────────
-REPO = "elixpo/assets"
-PROJECT_NAME = "assets"
-PROJECT_DESCRIPTION = "Real-time collaborative blogging platform"
+REPO = "elixpo/agent.elixpo"
+PROJECT_NAME = "agent.elixpo"
+PROJECT_DESCRIPTION = "Elixpo agent orchestration hub"
 
 # ── GitHub Projects V2 ──────────────────────────────
 # Shared org-wide projects (linked to all elixpo repos).
@@ -74,19 +79,6 @@ PROJECTS = {
             "Low": "987b0728",
         },
     },
-    # Moderation = blog reports (issues opened by @elixpoo with the REPORT label).
-    "Moderation": {
-        "id": "PVT_kwDOCZpXlc4BZB6p",
-        "number": 6,
-        "url": "https://github.com/orgs/elixpo/projects/6",
-        "priority_field_id": "PVTSSF_lADOCZpXlc4BZB6pzhUDgmg",
-        "priority_options": {
-            "Urgent": "77879a01",
-            "High": "a18435ad",
-            "Medium": "40e8adee",
-            "Low": "6902e37d",
-        },
-    },
 }
 
 # Valid categories and priorities (for LLM prompts + validation)
@@ -108,7 +100,6 @@ CATEGORY_TO_TYPE = {
     "Bugs": "Bug",
     "Support": "Task",
     "Dev": "Task",
-    "Moderation": "Task",
 }
 
 # ── Organization ────────────────────────────────────
