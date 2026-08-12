@@ -154,6 +154,35 @@ def _draw_agent_workflow(canvas):
               fill=pale, width=width, joint="curve")
 
 
+def _draw_search_workflow(canvas):
+    """Draw quiet OreoLook research/source scaffolding behind Oreo."""
+    draw = ImageDraw.Draw(canvas)
+    pale = (226, 226, 230)
+    width = 2
+
+    # Search lens at the beginning of the research path.
+    draw.ellipse((1080, 98, 1134, 152), outline=pale, width=width)
+    draw.line((1120, 139, 1153, 172), fill=pale, width=width)
+
+    # One query fans out to three source types.
+    hub = (1080, 286)
+    sources = ((1144, 238), (1188, 286), (1144, 334))
+    draw.ellipse((hub[0] - 7, hub[1] - 7, hub[0] + 7, hub[1] + 7),
+                 outline=pale, width=width)
+    for cx, cy in sources:
+        draw.line((hub[0] + 7, hub[1], cx - 8, cy), fill=pale, width=width)
+        draw.ellipse((cx - 8, cy - 8, cx + 8, cy + 8),
+                     outline=pale, width=width)
+
+    # Synthesized answer card with three citation marks—pure geometry, no text.
+    draw.rounded_rectangle((1098, 410, 1212, 486), radius=8,
+                           outline=pale, width=width)
+    draw.line((1118, 435, 1188, 435), fill=pale, width=width)
+    draw.line((1118, 453, 1170, 453), fill=pale, width=width)
+    for cx in (1136, 1156, 1176):
+        draw.ellipse((cx - 3, 469, cx + 3, 475), fill=pale)
+
+
 def _compose_isolated_art(img, layout):
     """Extract model artwork, fit it, and anchor it on a dotted canvas."""
     tolerance = int(layout.get("background_tolerance", 24))
@@ -186,8 +215,11 @@ def _compose_asset_art(card_md, layout):
     tolerance = int(layout.get("background_tolerance", 45))
     art = _extract_art(art_img, tolerance)
     canvas = _dotted_canvas()
-    if layout.get("infographic", "").lower() == "agent-workflow":
+    infographic = layout.get("infographic", "").lower()
+    if infographic == "agent-workflow":
         _draw_agent_workflow(canvas)
+    elif infographic == "search-workflow":
+        _draw_search_workflow(canvas)
     return _place_art(canvas, art, layout)
 
 
