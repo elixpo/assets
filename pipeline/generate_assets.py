@@ -121,6 +121,23 @@ def _read_prompt(path):
     return None
 
 
+def _read_key_block(path, heading):
+    """Read ``key: value`` pairs from a Markdown H2 block."""
+    text = Path(path).read_text()
+    marker = "## " + heading
+    if marker not in text:
+        return {}
+    after = text.split(marker, 1)[1]
+    values = {}
+    for line in after.splitlines():
+        if line.startswith("##"):
+            break
+        if ":" in line:
+            key, value = line.split(":", 1)
+            values[key.strip().lower()] = value.strip()
+    return values
+
+
 def _normalize_sticker_prompt(prompt):
     """Force the shared sticker finish so every sticker keeps a padded solid backing."""
     old_suffix = (
@@ -633,6 +650,14 @@ def generate_og(only=None, seed=42, force=False):
             if final.exists() and not force:
                 print("  [locked] %s — keeping %s (pass --force to reroll)"
                       % (md.stem, final.name))
+                continue
+
+            layout = _read_key_block(md, "Layout")
+            if layout.get("mode", "").lower() == "asset-art":
+                _compose_og_text(md, None, final)
+                if final.exists():
+                    print("  local approved artwork composited → %s" % final)
+                    total += 1
                 continue
 
             prompt = _read_prompt(md)

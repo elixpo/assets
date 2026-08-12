@@ -61,12 +61,13 @@ def _font(kind, size):
 
 
 # ── Text helpers ──────────────────────────────────────────────────────────────
-def _read_text_block(md_path):
-    """Parse the `## Text` block of a card .md into a dict of key: value."""
+def _read_key_block(md_path, heading):
+    """Parse a Markdown H2 block containing ``key: value`` lines."""
     text = Path(md_path).read_text()
-    if "## Text" not in text:
+    marker = "## " + heading
+    if marker not in text:
         return {}
-    after = text.split("## Text", 1)[1]
+    after = text.split(marker, 1)[1]
     out = {}
     for line in after.splitlines():
         if line.startswith("##"):
@@ -75,6 +76,119 @@ def _read_text_block(md_path):
             k, v = line.split(":", 1)
             out[k.strip().lower()] = v.strip()
     return out
+
+
+def _read_text_block(md_path):
+    """Parse the `## Text` block of a card .md into a dict of key: value."""
+    return _read_key_block(md_path, "Text")
+
+
+def _dotted_canvas():
+    """Create the deterministic Elixpo white dotted OG background."""
+    canvas = Image.new("RGB", (W, H), (255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
+    for y in range(8, H, 14):
+        for x in range(8, W, 14):
+            draw.ellipse((x, y, x + 1, y + 1), fill=(217, 217, 221))
+    return canvas
+
+
+def _extract_art(img, tolerance):
+    """Flood-fill a light connected background and crop opaque artwork."""
+    art = img.convert("RGBA")
+    w, h = art.size
+    transparent = (255, 0, 255, 0)
+    for corner in ((0, 0), (w - 1, 0), (0, h - 1), (w - 1, h - 1)):
+        if art.getpixel(corner) != transparent:
+            ImageDraw.floodfill(art, corner, transparent, thresh=tolerance)
+
+    bbox = art.getchannel("A").getbbox()
+    if not bbox:
+        raise ValueError("art extraction found no opaque artwork")
+    return art.crop(bbox)
+
+
+def _place_art(canvas, art, layout):
+    """Fit extracted artwork and anchor it inside the right safe area."""
+    tolerance = int(layout.get("background_tolerance", 24))
+    max_width = int(layout.get("art_max_width", 390))
+    max_height = int(layout.get("art_max_height", 470))
+    right = int(layout.get("art_right", 40))
+    top_value = layout.get("art_top", "center").strip().lower()
+    art.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+
+    x = W - right - art.width
+    if top_value == "center":
+        y = (H - art.height) // 2
+    else:
+        y = int(top_value)
+    if x < COL_W + MARGIN or y < 0 or y + art.height > H:
+        raise ValueError("isolated-art placement falls outside the safe canvas")
+
+    canvas.paste(art, (x, y), art)
+    return canvas
+
+
+def _draw_agent_workflow(canvas):
+    """Draw quiet Agent issue/branch/check scaffolding behind Oreo."""
+    draw = ImageDraw.Draw(canvas)
+    pale = (226, 226, 230)
+    width = 2
+
+    # Blank issue/page with a folded corner—no text-like detail.
+    draw.rounded_rectangle((1112, 105, 1190, 180), radius=8,
+                           outline=pale, width=width)
+    draw.line((1168, 105, 1190, 127, 1168, 127, 1168, 105),
+              fill=pale, width=width, joint="curve")
+
+    # Compact three-node contribution branch.
+    draw.line((1085, 278, 1135, 278, 1162, 305, 1202, 305),
+              fill=pale, width=width, joint="curve")
+    for cx, cy in ((1085, 278), (1162, 305), (1202, 305)):
+        draw.ellipse((cx - 9, cy - 9, cx + 9, cy + 9),
+                     outline=pale, width=width)
+
+    # Completed merge/check node.
+    draw.ellipse((1148, 390, 1214, 456), outline=pale, width=width)
+    draw.line((1167, 423, 1183, 438, 1200, 413),
+              fill=pale, width=width, joint="curve")
+
+
+def _compose_isolated_art(img, layout):
+    """Extract model artwork, fit it, and anchor it on a dotted canvas."""
+    tolerance = int(layout.get("background_tolerance", 24))
+    art = _extract_art(img, tolerance)
+    canvas = _dotted_canvas()
+    return _place_art(canvas, art, layout)
+
+
+def _compose_asset_art(card_md, layout):
+    """Reuse approved repository artwork instead of regenerating a mascot."""
+    source_value = layout.get("art_source")
+    if not source_value:
+        raise ValueError("asset-art mode requires art_source")
+    repo_root = Path(__file__).resolve().parent.parent
+    source = (repo_root / source_value).resolve()
+    if not source.exists():
+        raise FileNotFoundError("asset-art source not found: %s" % source)
+
+    art_img = Image.open(source).convert("RGB")
+    crop_value = layout.get("art_crop")
+    if crop_value:
+        try:
+            crop = tuple(int(value.strip()) for value in crop_value.split(","))
+        except ValueError:
+            raise ValueError("art_crop must be left,top,right,bottom")
+        if len(crop) != 4:
+            raise ValueError("art_crop must contain four integers")
+        art_img = art_img.crop(crop)
+
+    tolerance = int(layout.get("background_tolerance", 45))
+    art = _extract_art(art_img, tolerance)
+    canvas = _dotted_canvas()
+    if layout.get("infographic", "").lower() == "agent-workflow":
+        _draw_agent_workflow(canvas)
+    return _place_art(canvas, art, layout)
 
 
 def _text_w(draw, s, font, tracking=0):
@@ -123,14 +237,21 @@ def _fit_headline(draw, text, max_w, max_lines=3, hi=78, lo=40):
 def compose_card(card_md, bg_path, out_path):
     """Overlay the card's `## Text` onto its AI design → out_path (1280×720)."""
     txt = _read_text_block(card_md)
+    layout = _read_key_block(card_md, "Layout")
     eyebrow  = txt.get("eyebrow", "")
     headline = txt.get("headline", "")
     sub      = txt.get("sub", "")
     url      = txt.get("url", "")
 
-    img = Image.open(bg_path).convert("RGB")
-    if img.size != (W, H):
-        img = img.resize((W, H), Image.LANCZOS)
+    mode = layout.get("mode", "").lower()
+    if mode == "asset-art":
+        img = _compose_asset_art(card_md, layout)
+    else:
+        img = Image.open(bg_path).convert("RGB")
+        if img.size != (W, H):
+            img = img.resize((W, H), Image.LANCZOS)
+        if mode == "isolated-art":
+            img = _compose_isolated_art(img, layout)
     draw = ImageDraw.Draw(img)
 
     # Eyebrow (mono, uppercase, wide tracking)
