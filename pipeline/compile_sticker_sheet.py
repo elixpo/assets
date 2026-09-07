@@ -4,18 +4,18 @@ Reads PNGs from `stickers/` (skipping generated sheet files), arranges them
 in filename order, and writes multiple output sheets of fixed physical size.
 
 Default layout:
-  - 8 inches wide x 12 inches tall
+  - 12 inches wide x 8 inches tall
   - 300 DPI
   - 40 stickers per sheet
-  - 5 columns x 8 rows
+  - 8 columns x 5 rows
 
 Each sticker is placed inside a padded, dotted cut-guide rectangle.
 
 Usage:
     python pipeline/compile_sticker_sheet.py
     python pipeline/compile_sticker_sheet.py --dpi 300
-    python pipeline/compile_sticker_sheet.py --per-sheet 40 --cols 5
-    python pipeline/compile_sticker_sheet.py --sheet-width-in 8 --sheet-height-in 12
+    python pipeline/compile_sticker_sheet.py --per-sheet 40 --cols 8 --rows 5
+    python pipeline/compile_sticker_sheet.py --sheet-width-in 12 --sheet-height-in 8
 
 Requires: Pillow.
 """
@@ -38,9 +38,10 @@ RESAMPLE_LANCZOS = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image
 STICKER_DIR = Path("stickers")
 SKIP_NAMES = {"sheet.png", "oreoOS_gummy_sheet.png"}
 DEFAULT_DPI = 300
-DEFAULT_SHEET_WIDTH_IN = 8
-DEFAULT_SHEET_HEIGHT_IN = 12
-DEFAULT_PER_SHEET = 40
+DEFAULT_SHEET_WIDTH_IN = 12
+DEFAULT_SHEET_HEIGHT_IN = 8
+DEFAULT_COLS = 8
+DEFAULT_ROWS = 5
 
 
 def parse_args():
@@ -48,17 +49,17 @@ def parse_args():
         description="Composite stickers/*.png into multiple print sheets."
     )
     p.add_argument("--sheet-width-in", type=float, default=DEFAULT_SHEET_WIDTH_IN,
-                   help="sheet width in inches (default 8)")
+                   help="sheet width in inches (default 12)")
     p.add_argument("--sheet-height-in", type=float, default=DEFAULT_SHEET_HEIGHT_IN,
-                   help="sheet height in inches (default 12)")
+                   help="sheet height in inches (default 8)")
     p.add_argument("--dpi", type=int, default=DEFAULT_DPI,
                    help="output DPI used to convert inches to pixels (default 300)")
-    p.add_argument("--per-sheet", type=int, default=DEFAULT_PER_SHEET,
-                   help="stickers per output sheet (default 40)")
-    p.add_argument("--cols", type=int, default=5,
-                   help="stickers per row (default 5)")
+    p.add_argument("--per-sheet", type=int, default=None,
+                   help="stickers per output sheet; default = fill the grid")
+    p.add_argument("--cols", type=int, default=DEFAULT_COLS,
+                   help="stickers per row (default 8)")
     p.add_argument("--rows", type=int, default=None,
-                   help="stickers per column; default = enough rows for --per-sheet")
+                   help="sticker rows per sheet; default 5, or enough for --per-sheet")
     p.add_argument("--gap", type=int, default=18,
                    help="gap between stickers in px (default 18)")
     p.add_argument("--margin", type=int, default=24,
@@ -108,18 +109,22 @@ def dotted_rectangle(draw, box, fill, dot=4, space=6, width=1):
         draw.line((right, py, right, min(py + dot - 1, bottom)), fill=fill, width=width)
 
 
-def make_sheet(files, out_path, cols, rows, cell_w, cell_h, gap, margin, padding, bg, cut_line,
-               dpi):
-    sheet_w = 2 * margin + cols * cell_w + (cols - 1) * gap
-    sheet_h = 2 * margin + rows * cell_h + (rows - 1) * gap
-
+def make_sheet(files, out_path, sheet_w, sheet_h, cols, rows, cell_w, cell_h, gap, padding,
+               bg, cut_line, dpi):
     sheet = Image.new("RGB", (sheet_w, sheet_h), bg)
     draw = ImageDraw.Draw(sheet)
 
+    # Integer cell sizes can leave a few spare pixels. Centre the complete grid
+    # so every output keeps the exact requested physical page dimensions.
+    grid_w = cols * cell_w + (cols - 1) * gap
+    grid_h = rows * cell_h + (rows - 1) * gap
+    origin_x = (sheet_w - grid_w) // 2
+    origin_y = (sheet_h - grid_h) // 2
+
     for i, fp in enumerate(files):
         r, c = divmod(i, cols)
-        x = margin + c * (cell_w + gap)
-        y = margin + r * (cell_h + gap)
+        x = origin_x + c * (cell_w + gap)
+        y = origin_y + r * (cell_h + gap)
 
         try:
             im = Image.open(fp).convert("RGBA")
@@ -148,8 +153,14 @@ def main():
     files = collect_stickers()
 
     cols = max(1, args.cols)
-    per_sheet = max(1, args.per_sheet)
-    rows = max(1, args.rows) if args.rows else max(1, ceil(per_sheet / cols))
+    if args.rows is not None:
+        rows = max(1, args.rows)
+    elif args.per_sheet is not None:
+        rows = max(1, ceil(max(1, args.per_sheet) / cols))
+    else:
+        rows = DEFAULT_ROWS
+    capacity = cols * rows
+    per_sheet = capacity if args.per_sheet is None else max(1, args.per_sheet)
 
     sheet_w_px = max(1, round(args.sheet_width_in * args.dpi))
     sheet_h_px = max(1, round(args.sheet_height_in * args.dpi))
@@ -168,7 +179,6 @@ def main():
         print("error: sheet too small for the requested grid", file=sys.stderr)
         sys.exit(1)
 
-    capacity = cols * rows
     if per_sheet > capacity:
         print(f"warning: --per-sheet {per_sheet} exceeds grid capacity {capacity}; "
               f"using {capacity} per sheet")
@@ -186,18 +196,27 @@ def main():
         sheet_w, sheet_h = make_sheet(
             batch,
             out_path,
+            sheet_w_px,
+            sheet_h_px,
             cols,
             rows,
             cell_w,
             cell_h,
             max(0, args.gap),
-            max(0, args.margin),
             max(0, args.padding),
             args.bg,
             args.cut_line,
             args.dpi,
         )
         print(f"wrote {out_path} ({sheet_w}x{sheet_h}px)")
+
+    expected_outputs = {STICKER_DIR / f"sheet_{i:02d}.png"
+                        for i in range(1, len(batches) + 1)}
+    for stale_path in sorted(STICKER_DIR.glob("sheet_*.png")):
+        suffix = stale_path.stem.removeprefix("sheet_")
+        if suffix.isdigit() and stale_path not in expected_outputs:
+            stale_path.unlink()
+            print(f"removed stale sheet {stale_path}")
 
     print(f"done: {len(files)} stickers split across {len(batches)} sheet(s)")
 
